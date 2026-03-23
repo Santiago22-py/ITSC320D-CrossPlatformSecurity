@@ -46,10 +46,22 @@ export default class Notes extends React.Component<TProps, IState> {
 		this.storeNotes(this.state.notes);
 	}
 
+	// CHANGED
 	private async getStoredNotes(): Promise<INote[]> {
-		const suffix = this.props.route.params.user.username + '-' + this.props.route.params.user.password;
+		/*
+	    * SECURITY FIX - Type: Insecure Data Storage
+		* BEFORE: The notes were stored in AsyncStorage, whcih included both the username and password in the key. T
+		* PROBLEM: This is a security risk, as anyone with access to the device can easily
+		* 		   retrieve the username and password from the key
+		* AFTER: We are now storing the notes using only the username as part of the key
+		*        the password is no longer included, reducing the risk of exposing sensitive information through the key.
+		* 	
+		*/
+		const storageKey = 'notes-' + this.props.route.params.user.username;
 
-		const value = await AsyncStorage.getItem('notes-' + suffix);
+		//const suffix = this.props.route.params.user.username + '-' + this.props.route.params.user.password;
+
+		const value = await AsyncStorage.getItem(storageKey);
 
 		if (value !== null) {
 			return JSON.parse(value);
@@ -58,11 +70,23 @@ export default class Notes extends React.Component<TProps, IState> {
 		}
 	}
 
+	// CHANGED
 	private async storeNotes(notes: INote[]) {
-		const suffix = this.props.route.params.user.username + '-' + this.props.route.params.user.password;
+		/*
+		* SECURITY FIX - Type: Insecure Data Storage
+		* BEFORE: The storage key was built using both username and password
+		* PROBLEM: Sensitive information (password) was included in the storage key,
+		*          which could be easily accessed by anyone with access to the device
+		* AFTER: The password is no longer included in the storage key, once again
+		*        using only the username to identify the user's notes, 
+		*        thus reducing the risk of exposing sensitive information through the key.
+		*/
+		//const suffix = this.props.route.params.user.username + '-' + this.props.route.params.user.password;
+
+		const storageKey = 'notes-' + this.props.route.params.user.username;
 
 		const jsonValue = JSON.stringify(notes);
-		await AsyncStorage.setItem('notes-' + suffix, jsonValue);
+		await AsyncStorage.setItem(storageKey, jsonValue);
 	}
 
 	private onNoteTitleChange(value: string) {
