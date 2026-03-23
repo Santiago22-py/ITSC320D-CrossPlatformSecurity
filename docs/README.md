@@ -125,6 +125,8 @@ Lorem Ipsum
 
 ## 4. References
 
-[1] https://reactnative.dev/docs/0.81/asyncstorage  
-[2] https://developer.android.com/privacy-and-security/security-tips#credential-requests  
-[3] https://owasp.org/www-project-mobile-top-10/2023-risks/m9-insecure-data-storage.html#security-weakness
+[1] React Native. (2025, Sep. 10). AsyncStorage. Retrieved from https://reactnative.dev/docs/0.81/asyncstorage
+
+[2] Android Developers. (2026, Mar. 06). Security tips. Retrieved from https://developer.android.com/privacy-and-security/security-tips
+
+[3] OWASP Foundation. (2023). M9: Insecure Data Storage. OWASP Mobile Top 10. Retrieved from https://owasp.org/www-project-mobile-top-10/2023-risks/m9-insecure-data-storage.html
