@@ -1,55 +1,58 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
 import React from 'react';
-import type { PropsWithChildren } from 'react';
-import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    useColorScheme,
-    View,
-} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import Notes from './Notes';
-import Login, { IUser } from './Login';
+import Login from './Login';
+import { authenticateUser, IAuthSession, isSessionValid } from './auth';
 
 export type TRootStackParamList = {
-    Login: undefined;
-    Notes: {
-        user: IUser;
-    };
+	Login: undefined;
+	Notes: undefined;
 };
 
+const Stack = createNativeStackNavigator<TRootStackParamList>();
+
 function App() {
-    const [signedInAs, setSignedInAs] = React.useState<IUser | false>(false);
+	const [session, setSession] = React.useState<IAuthSession | null>(null);
 
-    const Stack = createNativeStackNavigator<TRootStackParamList>();
+	async function handleLogin(username: string, password: string) {
+		const authenticatedSession = await authenticateUser(username, password);
 
-    return (
-        <NavigationContainer>
-            <Stack.Navigator>
-                {
-                    !signedInAs ?
-                        <Stack.Screen name="Login">
-                            {(props) => <Login {...props} onLogin={(user) => setSignedInAs(user)} />}
-                        </Stack.Screen> :
-                        <Stack.Screen name="Notes" component={Notes} initialParams={{ user: signedInAs }} />
-                }
-            </Stack.Navigator>
-        </NavigationContainer>
-    );
+		if (!authenticatedSession) {
+			return false;
+		}
+
+		setSession(authenticatedSession);
+		return true;
+	}
+
+	function handleLogout() {
+		setSession(null);
+	}
+
+	return (
+		<NavigationContainer>
+			<Stack.Navigator>
+				{!isSessionValid(session) ? (
+					<Stack.Screen name="Login">
+						{(props) => <Login {...props} onLogin={handleLogin} />}
+					</Stack.Screen>
+				) : (
+					<Stack.Screen name="Notes">
+						{(props) => (
+							<Notes
+								{...props}
+								session={session as IAuthSession}
+								isSessionValid={isSessionValid}
+								onLogout={handleLogout}
+							/>
+						)}
+					</Stack.Screen>
+				)}
+			</Stack.Navigator>
+		</NavigationContainer>
+	);
 }
-
-const styles = StyleSheet.create({
-});
 
 export default App;
