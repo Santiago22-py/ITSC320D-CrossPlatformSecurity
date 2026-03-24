@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Note from './components/Note';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TRootStackParamList } from './App';
+import { IAuthSession } from './auth';
 
 export interface INote {
 	title: string;
@@ -11,6 +12,9 @@ export interface INote {
 }
 
 interface IProps {
+	session: IAuthSession;
+	isSessionValid: (session: IAuthSession | null | undefined) => boolean;
+	onLogout: () => void;
 }
 
 interface IState {
@@ -37,6 +41,12 @@ export default class Notes extends React.Component<TProps, IState> {
 	}
 
 	public async componentDidMount() {
+		if (!this.props.isSessionValid(this.props.session)) {
+			Alert.alert('Session Expired', 'Please login again to access your notes.');
+			this.props.onLogout();
+			return;
+		}
+
 		const existing = await this.getStoredNotes();
 
 		this.setState({ notes: existing });
@@ -57,9 +67,7 @@ export default class Notes extends React.Component<TProps, IState> {
 		*        the password is no longer included, reducing the risk of exposing sensitive information through the key.
 		* 	
 		*/
-		const storageKey = 'notes-' + this.props.route.params.user.username;
-
-		//const suffix = this.props.route.params.user.username + '-' + this.props.route.params.user.password;
+		const storageKey = 'notes-' + this.props.session.username;
 
 		const value = await AsyncStorage.getItem(storageKey);
 
@@ -81,9 +89,7 @@ export default class Notes extends React.Component<TProps, IState> {
 		*        using only the username to identify the user's notes, 
 		*        thus reducing the risk of exposing sensitive information through the key.
 		*/
-		//const suffix = this.props.route.params.user.username + '-' + this.props.route.params.user.password;
-
-		const storageKey = 'notes-' + this.props.route.params.user.username;
+		const storageKey = 'notes-' + this.props.session.username;
 
 		const jsonValue = JSON.stringify(notes);
 		await AsyncStorage.setItem(storageKey, jsonValue);
@@ -98,6 +104,19 @@ export default class Notes extends React.Component<TProps, IState> {
 	}
 
 	private addNote() {
+		/*
+		* SECURITY FIX - Type: Improper Authentication
+		* BEFORE: Protected actions could run without re-checking whether the session
+		*         was still valid after the user reached the screen.
+		* AFTER: The app now blocks note creation when the authenticated session is
+		*        missing or expired and forces the user back to login.
+		*/
+		if (!this.props.isSessionValid(this.props.session)) {
+			Alert.alert('Session Expired', 'Please login again before adding a note.');
+			this.props.onLogout();
+			return;
+		}
+
 		const note: INote = {
 			title: this.state.newNoteTitle,
 			text: this.state.newNoteEquation
@@ -121,8 +140,9 @@ export default class Notes extends React.Component<TProps, IState> {
 				<ScrollView contentInsetAdjustmentBehavior="automatic">
 					<View style={styles.container}>
 						<Text style={styles.title}>
-							{'Math Notes: ' + this.props.route.params.user.username}
+							{'Math Notes: ' + this.props.session.username}
 						</Text>
+						<Button title="Logout" onPress={this.props.onLogout} />
 						<TextInput
 							style={styles.titleInput}
 							value={this.state.newNoteTitle}

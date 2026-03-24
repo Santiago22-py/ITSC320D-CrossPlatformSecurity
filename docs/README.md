@@ -70,15 +70,43 @@ Lastly, I also realized the importance of using proper methods and storage types
 Author: Person 2
 
 ###### 3.2.1 Vulnerability Description  
-Lorem Ipsum
+The original login flow handled authentication directly inside the `Login.tsx` screen and used hardcoded username and password pairs:
+
+```tsx
+const users: IUser[] = [
+    { username: 'joe', password: 'secret' },
+    { username: 'bob', password: 'password' },
+];
+
+if (username === user.username && password === user.password) {
+    props.onLogin(foundUser);
+}
+```
+
+This meant the app was trusting the client to decide whether a user was authenticated. It also exposed valid credentials in the mobile codebase, which can be inspected or reverse engineered. The same flow passed the full user object forward after login, including the password, even though protected screens only needed the username.
 ###### 3.2.2 Security Risk  
-Lorem Ipsum
+This is insecure because mobile application code can be reverse engineered, allowing attackers to recover hardcoded credentials or bypass client-side checks. In addition, the notes screen had no real session validation before loading protected content or adding notes, so access control depended entirely on the user reaching the screen through the expected path.
 ###### 3.2.3 Implemented Fix  
-Lorem Ipsum
+The authentication logic was moved out of the UI component and centralized in a dedicated `auth.ts` module. The login screen now submits credentials to that auth layer instead of validating them in the component itself. As part of this change, the hardcoded username and password list was removed from the client code entirely.
+
+After a successful login, the app now creates an in-memory session object containing only:
+
+```tsx
+{
+    username,
+    sessionToken,
+    expiresAt
+}
+```
+
+The password is no longer kept in navigation state or reused after authentication. The `Notes` screen now checks whether the session is still valid when it loads and again before allowing protected actions such as adding a new note. If the session is invalid or expired, the user is logged out and must authenticate again.
+
+Because this lab project does not include a backend service, the mobile client now performs only basic input validation locally and treats the authentication module as the boundary where a real server-side verification call would occur. This is safer than embedding credential pairs in the app because the client no longer exposes valid usernames or passwords in source code.
 ###### 3.2.4 Security Improvement  
-Lorem Ipsum
+This improves security by removing hardcoded credentials from the client, reducing exposure of passwords, removing direct authentication decisions from the UI layer, and enforcing session checks before protected content can be accessed or modified. While this lab project still does not include a backend service, the new structure is closer to a secure design because it no longer relies on embedded credential pairs and can be replaced with a real server-side authentication API without changing the rest of the app.
 
 **Reflection**
+This issue showed how easy it is for authentication to look correct from a user-interface perspective while still being weak from a security perspective. Before making the fix, I mainly focused on whether login "worked," but the lab made it clear that where authentication happens is just as important as whether it succeeds. I also learned that protected screens should not simply assume the user is authorized forever after the first check. Even in a small app, adding session validation and avoiding unnecessary password handling makes the overall design much safer and easier to improve later.
 
 ### 3.3. Code Injection
 Author: Person 3

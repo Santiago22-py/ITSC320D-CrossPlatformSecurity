@@ -3,13 +3,8 @@ import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TRootStackParamList } from './App';
 
-export interface IUser {
-	username: string;
-	password: string;
-}
-
 interface IProps {
-	onLogin: (user: IUser) => void;
+	onLogin: (username: string, password: string) => Promise<boolean>;
 }
 
 type TProps = NativeStackScreenProps<TRootStackParamList, 'Login'> & IProps;
@@ -17,28 +12,23 @@ type TProps = NativeStackScreenProps<TRootStackParamList, 'Login'> & IProps;
 export default function Login(props: TProps) {
 	const [username, setUsername] = React.useState('');
 	const [password, setPassword] = React.useState('');
+	const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-	const users: IUser[] = [
-		{ username: 'joe', password: 'secret' },
-		{ username: 'bob', password: 'password' },
-	];
-
-	function login() {
-		let foundUser: IUser | false = false;
-
-		for (const user of users) {
-			if (username === user.username && password === user.password) {
-				foundUser = user;
-
-				break;
-			}
+	async function login() {
+		if (isSubmitting) {
+			return;
 		}
 
-		if (foundUser) {
-			props.onLogin(foundUser);
-		} else {
+		setIsSubmitting(true);
+		const isAuthenticated = await props.onLogin(username, password);
+		setIsSubmitting(false);
+
+		if (!isAuthenticated) {
 			Alert.alert('Error', 'Username or password is invalid.');
+			return;
 		}
+
+		setPassword('');
 	}
 
 	return (
@@ -55,8 +45,9 @@ export default function Login(props: TProps) {
 				value={password}
 				onChangeText={setPassword}
 				placeholder="Password"
+				secureTextEntry
 			/>
-			<Button title="Login" onPress={login} />
+			<Button title={isSubmitting ? 'Signing In...' : 'Login'} onPress={login} disabled={isSubmitting} />
 		</View>
 	);
 };
