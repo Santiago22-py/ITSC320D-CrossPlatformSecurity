@@ -59,7 +59,7 @@ export default class Notes extends React.Component<TProps, IState> {
 	// CHANGED
 	private async getStoredNotes(): Promise<INote[]> {
 		/*
-	    * SECURITY FIX - Type: Insecure Data Storage
+			* SECURITY FIX - Type: Insecure Data Storage
 		* BEFORE: The notes were stored in AsyncStorage, whcih included both the username and password in the key. T
 		* PROBLEM: This is a security risk, as anyone with access to the device can easily
 		* 		   retrieve the username and password from the key
@@ -117,17 +117,50 @@ export default class Notes extends React.Component<TProps, IState> {
 			return;
 		}
 
-		const note: INote = {
-			title: this.state.newNoteTitle,
-			text: this.state.newNoteEquation
-		};
+		// SECURITY FIX - Type: Insufficient Input Validation
+		// BEFORE: User inputs (title and equation) were accepted without validation.
+		// PROBLEM: This could allow invalid or malicious input, leading to errors or security risks.
+		// AFTER: Added validation for length, allowed characters, and empty input to ensure safe data handling.
 
-		if (note.title === '' || note.text === '') {
-			Alert.alert('Error', 'Title and equation cannot be empty.');
+		const title = this.state.newNoteTitle;
+		const equation = this.state.newNoteEquation;
+
+		// Title validation
+		if (!title || title.trim().length < 3) {
+			Alert.alert("Invalid Title", "Title must be at least 3 characters long.");
 			return;
 		}
 
-		this.setState({ 
+		// Only letters, numbers, spaces
+		if (!/^[a-zA-Z0-9\s]+$/.test(title)) {
+			Alert.alert("Invalid Title", "Only letters and numbers allowed.");
+			return;
+		}
+
+		// Equation validation
+		if (!equation || equation.trim() === "") {
+			Alert.alert("Invalid Input", "Equation cannot be empty.");
+			return;
+		}
+
+		// Only allow numbers and math operators
+		if (!/^[0-9+\-*/()]+$/.test(equation)) {
+			Alert.alert("Invalid Input", "Equation contains invalid characters.");
+			return;
+		}
+
+		// Prevent very long input
+		if (equation.length > 50) {
+			Alert.alert("Invalid Input", "Equation too long.");
+			return;
+		}
+
+		const note: INote = {
+			title: title.trim(),
+			text: equation.trim()
+		};
+
+		this.setState({
 			notes: this.state.notes.concat(note),
 			newNoteTitle: '',
 			newNoteEquation: ''

@@ -19,6 +19,21 @@ export default function Login(props: TProps) {
 			return;
 		}
 
+		// SECURITY FIX:
+		// Added input validation to prevent invalid or malicious input.
+
+		// Username validation (only letters/numbers, 3–20 chars)
+		if (!/^[a-zA-Z0-9]{3,20}$/.test(username.trim())) {
+			Alert.alert("Invalid Username", "Username must be 3-20 characters and contain only letters and numbers.");
+			return;
+		}
+
+		// Password validation (min 8 chars)
+		if (password.length < 8) {
+			Alert.alert("Invalid Password", "Password must be at least 8 characters long.");
+			return;
+		}
+
 		setIsSubmitting(true);
 		const isAuthenticated = await props.onLogin(username, password);
 		setIsSubmitting(false);
