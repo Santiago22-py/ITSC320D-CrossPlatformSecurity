@@ -112,15 +112,37 @@ This issue showed how easy it is for authentication to look correct from a user-
 Author: Person 3
 
 ###### 3.3.1 Vulnerability Description  
-Lorem Ipsum
+Code injection was found in the note evaluation flow at `src/components/Note.tsx`, where user-controlled text (`props.text`) was passed directly to `eval()`:
+
+```tsx
+const result = eval(props.text);
+```
+
+This allowed the application to interpret input as JavaScript code instead of treating it as plain data.
 ###### 3.3.2 Security Risk  
-Lorem Ipsum
+Using `eval()` with user input is dangerous because an attacker can inject malicious JavaScript and execute arbitrary code in the app context. This can lead to unauthorized behavior, data exposure, app crashes, and bypass of expected logic.
 ###### 3.3.3 Implemented Fix  
-Lorem Ipsum
+The unsafe `eval()` call was removed and replaced with a secure `safeCalculate(expression)` function.  
+The fix includes:
+
+- Strict regex input validation that allows only `0-9`, `+`, `-`, `*`, `/`, `(`, `)` and whitespace.
+- Sanitization by removing whitespace before parsing.
+- Token validation to ensure only valid numbers/operators are processed.
+- Safe arithmetic evaluation using operator and value stacks (no dynamic code execution).
+- Rejection of invalid expressions and mismatched parentheses with controlled error handling.
 ###### 3.3.4 Security Improvement  
-Lorem Ipsum
+This is a security improvement because user input is no longer executed as code. The new logic treats input as data only, validates it against a strict allowlist, and calculates results safely. This prevents arbitrary code execution and significantly reduces the risk of code injection.
 
 **Reflection**
+This issue highlighted how a single convenience function such as `eval()` can introduce a critical vulnerability when connected to user input. Replacing it with explicit parsing and strict validation made the behavior predictable and secure while keeping the feature simple for a mobile lab project.
+
+###### 3.3.5 Best Practices
+
+- Never use `eval()` or `new Function()` on untrusted input.
+- Use allowlist-based validation (regex) to restrict accepted characters and formats.
+- Treat all user input as untrusted and process it as data, not executable code.
+- Use explicit parsers/evaluators for expressions instead of runtime code execution.
+- Fail safely: return controlled errors for invalid input instead of attempting to execute it.
 
 ### 3.4. Insufficient Input Validation
 Author: Person 4
