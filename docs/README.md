@@ -148,15 +148,35 @@ This issue highlighted how a single convenience function such as `eval()` can in
 Author: Person 4
 
 ###### 3.4.1 Vulnerability Description  
-Lorem Ipsum
+Insufficient input validation refers to accept user inputs without doing proper checks for length, content and formats on them. This creates the possibility of invalid or malicious inputs getting processed by the system. 
+
 ###### 3.4.2 Security Risk  
-Lorem Ipsum
+User inputs were not properly validated in the following files:
+
+- src/Login.tsx (username and password fields)
+- src/Notes.tsx (note title and math equation inputs)
+
+Not validating the fields allows the users to enter invalid or unexpected data like special characters, empty values, or excessively long inputs. This could lead to application errors, unstable behavior, or potential security vulnerabilities. 
+
 ###### 3.4.3 Implemented Fix  
-Lorem Ipsum
+Input validation was added to all user input fields to ensure only valid data is accepted:
+
+- In Login.tsx:
+    - Username must be 3–20 characters long and contain only letters and numbers
+    - Password must be at least 8 characters long
+- In Notes.tsx:
+    - Title must be at least 3 characters long
+    - Title allows only letters, numbers, and spaces
+    - Equation cannot be empty
+    - Equation length is restricted to prevent excessive input
+
+Additionally, validation checks were implemented using regular expressions and conditional statements, and clear security comments were added in the code.
+
 ###### 3.4.4 Security Improvement  
-Lorem Ipsum
+These improvements ensure the app only processes valid and properly formatted inputs. This prevents risk of app crashing, invalid data to be stored and strengthens overall security of the application by limiting user input handling. 
 
 **Reflection**
+Implementing proper user validation before processing them helped me understand significance of input sanitization. I learned that even simple inputs like usernames or text fields can become security risks if not properly controlled. I will always implement input validation checking for input formats, enforce length restrictions, and ensure that all user-provided data is treated as untrusted. 
 
 ### 3.5. Insecure Code Practices
 Author: Person 5
