@@ -1,10 +1,20 @@
 import React from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, SafeAreaView, ScrollView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+	View,
+	Text,
+	TextInput,
+	Button,
+	StyleSheet,
+	Alert,
+	SafeAreaView,
+	ScrollView,
+} from 'react-native';
+import EncryptedStorage from 'react-native-encrypted-storage';
 import Note from './components/Note';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TRootStackParamList } from './App';
 import { IAuthSession } from './auth';
+import { reportError } from './security/reportError';
 
 export interface INote {
 	title: string;
@@ -32,7 +42,7 @@ export default class Notes extends React.Component<TProps, IState> {
 		this.state = {
 			notes: [],
 			newNoteTitle: '',
-			newNoteEquation: ''
+			newNoteEquation: '',
 		};
 
 		this.onNoteTitleChange = this.onNoteTitleChange.bind(this);
@@ -52,28 +62,47 @@ export default class Notes extends React.Component<TProps, IState> {
 		this.setState({ notes: existing });
 	}
 
-	public async componentWillUnmount() {
-		this.storeNotes(this.state.notes);
+	public componentWillUnmount() {
+		/*
+		SECURITY FIX:
+		Avoid unhandled promise rejections during unmount. Storage failures are handled safely
+		(without logging note contents or showing internal errors to the user).
+		*/
+		this.storeNotes(this.state.notes).catch(() => undefined);
 	}
 
 	// CHANGED
 	private async getStoredNotes(): Promise<INote[]> {
 		/*
-			* SECURITY FIX - Type: Insecure Data Storage
-		* BEFORE: The notes were stored in AsyncStorage, whcih included both the username and password in the key. T
-		* PROBLEM: This is a security risk, as anyone with access to the device can easily
-		* 		   retrieve the username and password from the key
-		* AFTER: We are now storing the notes using only the username as part of the key
-		*        the password is no longer included, reducing the risk of exposing sensitive information through the key.
-		* 	
+		* SECURITY FIX - Type: Insecure Data Storage
+		* BEFORE: Notes were stored in AsyncStorage (unencrypted) and the key included both username and password.
+		* PROBLEM: Unencrypted storage and password-in-key risks disclosure if device storage is inspected.
+		* AFTER: Notes are stored in EncryptedStorage (encrypted at rest) and the key uses only the username.
 		*/
 		const storageKey = 'notes-' + this.props.session.username;
 
-		const value = await AsyncStorage.getItem(storageKey);
+		/*
+		SECURITY FIX:
+		Wrap storage and JSON parsing in try/catch to prevent crashes and prevent leaking internal errors.
+		Show only a generic user message and log only a safe message via reportError(...).
+		*/
+		try {
+			const value = await EncryptedStorage.getItem(storageKey);
 
-		if (value !== null) {
-			return JSON.parse(value);
-		} else {
+			if (!value) {
+				return [];
+			}
+
+			const parsed = JSON.parse(value) as unknown;
+			if (!Array.isArray(parsed)) {
+				await EncryptedStorage.removeItem(storageKey);
+				return [];
+			}
+
+			return parsed as INote[];
+		} catch {
+			reportError();
+			Alert.alert('Error', 'Something went wrong. Please try again.');
 			return [];
 		}
 	}
@@ -86,13 +115,21 @@ export default class Notes extends React.Component<TProps, IState> {
 		* PROBLEM: Sensitive information (password) was included in the storage key,
 		*          which could be easily accessed by anyone with access to the device
 		* AFTER: The password is no longer included in the storage key, once again
-		*        using only the username to identify the user's notes, 
+		*        using only the username to identify the user's notes,
 		*        thus reducing the risk of exposing sensitive information through the key.
 		*/
 		const storageKey = 'notes-' + this.props.session.username;
 
-		const jsonValue = JSON.stringify(notes);
-		await AsyncStorage.setItem(storageKey, jsonValue);
+		/*
+		SECURITY FIX:
+		Handle storage write failures safely. Do not log note contents or internal errors.
+		*/
+		try {
+			const jsonValue = JSON.stringify(notes);
+			await EncryptedStorage.setItem(storageKey, jsonValue);
+		} catch {
+			reportError();
+		}
 	}
 
 	private onNoteTitleChange(value: string) {
@@ -127,43 +164,43 @@ export default class Notes extends React.Component<TProps, IState> {
 
 		// Title validation
 		if (!title || title.trim().length < 3) {
-			Alert.alert("Invalid Title", "Title must be at least 3 characters long.");
+			Alert.alert('Invalid Title', 'Title must be at least 3 characters long.');
 			return;
 		}
 
 		// Only letters, numbers, spaces
 		if (!/^[a-zA-Z0-9\s]+$/.test(title)) {
-			Alert.alert("Invalid Title", "Only letters and numbers allowed.");
+			Alert.alert('Invalid Title', 'Only letters and numbers allowed.');
 			return;
 		}
 
 		// Equation validation
-		if (!equation || equation.trim() === "") {
-			Alert.alert("Invalid Input", "Equation cannot be empty.");
+		if (!equation || equation.trim() === '') {
+			Alert.alert('Invalid Input', 'Equation cannot be empty.');
 			return;
 		}
 
 		// Only allow numbers and math operators
 		if (!/^[0-9+\-*/()]+$/.test(equation)) {
-			Alert.alert("Invalid Input", "Equation contains invalid characters.");
+			Alert.alert('Invalid Input', 'Equation contains invalid characters.');
 			return;
 		}
 
 		// Prevent very long input
 		if (equation.length > 50) {
-			Alert.alert("Invalid Input", "Equation too long.");
+			Alert.alert('Invalid Input', 'Equation too long.');
 			return;
 		}
 
 		const note: INote = {
 			title: title.trim(),
-			text: equation.trim()
+			text: equation.trim(),
 		};
 
 		this.setState({
 			notes: this.state.notes.concat(note),
 			newNoteTitle: '',
-			newNoteEquation: ''
+			newNoteEquation: '',
 		});
 	}
 
@@ -226,6 +263,6 @@ const styles = StyleSheet.create({
 		marginBottom: 10,
 	},
 	notes: {
-		marginTop: 15
+		marginTop: 15,
 	},
 });

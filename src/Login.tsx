@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TRootStackParamList } from './App';
+import { reportError } from './security/reportError';
 
 interface IProps {
 	onLogin: (username: string, password: string) => Promise<boolean>;
@@ -24,26 +25,45 @@ export default function Login(props: TProps) {
 
 		// Username validation (only letters/numbers, 3–20 chars)
 		if (!/^[a-zA-Z0-9]{3,20}$/.test(username.trim())) {
-			Alert.alert("Invalid Username", "Username must be 3-20 characters and contain only letters and numbers.");
+			Alert.alert(
+				'Invalid Username',
+				'Username must be 3-20 characters and contain only letters and numbers.',
+			);
 			return;
 		}
 
 		// Password validation (min 8 chars)
 		if (password.length < 8) {
-			Alert.alert("Invalid Password", "Password must be at least 8 characters long.");
+			Alert.alert('Invalid Password', 'Password must be at least 8 characters long.');
 			return;
 		}
 
+		/*
+		SECURITY FIX:
+		Added safe error handling around the login action.
+		We avoid displaying internal errors/stacks to the user and avoid logging credentials.
+		*/
 		setIsSubmitting(true);
-		const isAuthenticated = await props.onLogin(username, password);
-		setIsSubmitting(false);
+		let isAuthenticated = false;
+		try {
+			isAuthenticated = await props.onLogin(username, password);
+		} catch {
+			reportError();
+			Alert.alert('Error', 'Something went wrong. Please try again.');
+			return;
+		} finally {
+			setIsSubmitting(false);
+			/*
+			SECURITY FIX:
+			Clear the password field immediately after submission to reduce accidental exposure.
+			*/
+			setPassword('');
+		}
 
 		if (!isAuthenticated) {
 			Alert.alert('Error', 'Username or password is invalid.');
 			return;
 		}
-
-		setPassword('');
 	}
 
 	return (
@@ -62,10 +82,14 @@ export default function Login(props: TProps) {
 				placeholder="Password"
 				secureTextEntry
 			/>
-			<Button title={isSubmitting ? 'Signing In...' : 'Login'} onPress={login} disabled={isSubmitting} />
+			<Button
+				title={isSubmitting ? 'Signing In...' : 'Login'}
+				onPress={login}
+				disabled={isSubmitting}
+			/>
 		</View>
 	);
-};
+}
 
 const styles = StyleSheet.create({
 	container: {
@@ -89,5 +113,5 @@ const styles = StyleSheet.create({
 		borderColor: '#ccc',
 		padding: 10,
 		marginBottom: 10,
-	}
+	},
 });

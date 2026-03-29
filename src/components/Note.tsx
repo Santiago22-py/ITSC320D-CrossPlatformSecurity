@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Button, Alert } from 'react-native';
+import { reportError } from '../security/reportError';
 
 interface IProps {
 	title: string;
@@ -32,11 +33,16 @@ function safeCalculate(expression: string): number {
 			throw new Error('Invalid expression');
 		}
 
-		if (operator === '+') values.push(left + right);
-		else if (operator === '-') values.push(left - right);
-		else if (operator === '*') values.push(left * right);
-		else if (operator === '/') {
-			if (right === 0) throw new Error('Division by zero');
+		if (operator === '+') {
+			values.push(left + right);
+		} else if (operator === '-') {
+			values.push(left - right);
+		} else if (operator === '*') {
+			values.push(left * right);
+		} else if (operator === '/') {
+			if (right === 0) {
+				throw new Error('Division by zero');
+			}
 			values.push(left / right);
 		} else {
 			throw new Error('Invalid expression');
@@ -91,7 +97,13 @@ function Note(props: IProps) {
 			const result = safeCalculate(props.text);
 			Alert.alert('Result', 'Result: ' + result);
 		} catch {
-			Alert.alert('Invalid Input', 'Please enter a valid math expression.');
+			/*
+			SECURITY FIX:
+			Avoid showing raw error details (e.g., stack traces) in alerts.
+			Log only a safe message and show a generic user-facing error to reduce information leakage.
+			*/
+			reportError();
+			Alert.alert('Error', 'Something went wrong. Please try again.');
 		}
 	}
 
@@ -105,11 +117,11 @@ function Note(props: IProps) {
 			</Text>
 
 			<View style={styles.evaluateContainer}>
-				<Button title='Evaluate' onPress={evaluateEquation} />
+				<Button title="Evaluate" onPress={evaluateEquation} />
 			</View>
 		</View>
 	);
-};
+}
 
 const styles = StyleSheet.create({
 	container: {
@@ -119,19 +131,19 @@ const styles = StyleSheet.create({
 		backgroundColor: '#fff',
 		borderRadius: 5,
 		borderColor: 'black',
-		borderWidth: 1
+		borderWidth: 1,
 	},
 	title: {
 		fontSize: 18,
-		fontWeight: 'bold'
+		fontWeight: 'bold',
 	},
 	text: {
 		fontSize: 16,
 	},
 	evaluateContainer: {
 		marginTop: 10,
-		marginBottom: 10
-	}
+		marginBottom: 10,
+	},
 });
 
 export default Note;

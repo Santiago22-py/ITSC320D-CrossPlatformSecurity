@@ -9,6 +9,9 @@
 - Sehajbir Kaur
 
 ## 1. Introduction
+This lab focuses on identifying and mitigating common mobile security issues in a cross-platform React Native application. The app provides a simple login flow and a “Math Notes” feature where users can store and evaluate mathematical expressions.
+
+The goal of the assessment was to review the codebase for the specified vulnerability categories, document the risks, and apply secure mitigations that reduce information leakage and unsafe behavior.
 
 ## 2. Security Assessment
 For this lab, we have performed a securiy assessment to try and find security vulnerabilities across the code, following on the following: 
@@ -20,6 +23,20 @@ For this lab, we have performed a securiy assessment to try and find security vu
 - Insecure coding practices
 
 For each type, we analyzed the source code of the application and applied the appropriate mitigations
+
+### 2.1 Methodology (How issues were found)
+- Manual code review of the login, notes, and evaluation flows
+- Searched for insecure patterns such as `eval(...)`, plaintext credential handling, unsafe logging, and unhandled exceptions
+- Verified fixes by running lint/tests and exercising key UI flows (login, load notes, add note, evaluate expression)
+
+### 2.2 Findings Summary
+| Category | Where found | Why it mattered | Fix summary |
+|---|---|---|---|
+| Insecure Data Storage | `src/Notes.tsx` | Notes persisted without encryption; password previously used in storage key | Store notes using encrypted storage and remove password from keys |
+| Improper Authentication | `src/Login.tsx`, `src/auth.ts`, `src/Notes.tsx` | Hardcoded credentials / weak client-side checks can be bypassed | Centralize auth, remove hardcoded creds, verify credentials locally for the lab, enforce session checks |
+| Code Injection | `src/components/Note.tsx` | `eval()` allowed arbitrary code execution | Replace `eval()` with a safe parser/evaluator |
+| Input Validation | `src/Login.tsx`, `src/Notes.tsx` | Unvalidated input can crash app or cause unsafe behavior | Add allowlist validation and length checks |
+| Insecure Coding Practices | Multiple | Error/stack leakage and unsafe logging patterns | Centralize safe error handling and remove sensitive/debug logging |
 
 ## 3. Vulnerabilities and Fixes
 
@@ -42,11 +59,15 @@ In a case like this, someone could easily retrieve that password if someone were
 The Android Developer guidelines advices against storing user passwords in the local storage [2], and the OWASP Mobile top 10 also mentions that the lack of encryption, and storing sensitive data as plain text allows for easy access and exposion to unauthorized extraction/manipulation [3]. Taking that into consideration, storing passwords using an unencrypted system such as AsyncStorage[1] is not good practice.
 
 ###### 3.1.3 Implemented Fix 
-The fix implemented for  this issue was quite simple, for that we simply have removed the password as a component for key generation, now using only the non-sensitive username for it, this can be seen in the ```getStoredNotes()``` function 
+The fix implemented for this issue includes two improvements:
+1) Removed the password from key generation and now uses only the non-sensitive username.
+2) Switched persistence from AsyncStorage (unencrypted) to EncryptedStorage (encrypted at rest).
+
+This can be seen in the ```getStoredNotes()``` function:
 
 ```jsx
 const storageKey = 'notes-' + this.props.route.params.user.username;
-const value = await AsyncStorage.getItem(storageKey);
+const value = await EncryptedStorage.getItem(storageKey);
 ```
 
 and in the ```storeNotes(notes: INote[])``` function
@@ -55,11 +76,11 @@ and in the ```storeNotes(notes: INote[])``` function
 const storageKey = 'notes-' + this.props.route.params.user.username;
 
 const jsonValue = JSON.stringify(notes);
-await AsyncStorage.setItem(storageKey, jsonValue);
+await EncryptedStorage.setItem(storageKey, jsonValue);
 ```
 
 ###### 3.1.4 Security Improvement 
-This is a security improvement because we are now leaving passwords out of operations that include persistent storage (saving information in the device)
+This is a security improvement because we are now leaving passwords out of persistent storage keys and storing notes using encrypted storage at rest, reducing the risk of sensitive data exposure if device storage is inspected.
 
 **Reflection**  
 These issues were somewhat hard to catch at first glance, I had to go over the files a bit more carefully, which made me realize how easily a vulnerability such as this one can go un-noticed during development and become a huge security concern.  
@@ -102,6 +123,10 @@ After a successful login, the app now creates an in-memory session object contai
 The password is no longer kept in navigation state or reused after authentication. The `Notes` screen now checks whether the session is still valid when it loads and again before allowing protected actions such as adding a new note. If the session is invalid or expired, the user is logged out and must authenticate again.
 
 Because this lab project does not include a backend service, the mobile client now performs only basic input validation locally and treats the authentication module as the boundary where a real server-side verification call would occur. This is safer than embedding credential pairs in the app because the client no longer exposes valid usernames or passwords in source code.
+
+For the lab, the app also performs a local credential verification step without hardcoding plaintext credentials:
+- On first login for a username, the app stores a salted PBKDF2 password verifier in encrypted storage (not plaintext).
+- On later logins, the app derives the verifier again and compares it before creating a session.
 ###### 3.2.4 Security Improvement  
 This improves security by removing hardcoded credentials from the client, reducing exposure of passwords, removing direct authentication decisions from the UI layer, and enforcing session checks before protected content can be accessed or modified. While this lab project still does not include a backend service, the new structure is closer to a secure design because it no longer relies on embedded credential pairs and can be replaced with a real server-side authentication API without changing the rest of the app.
 
@@ -179,18 +204,44 @@ These improvements ensure the app only processes valid and properly formatted in
 Implementing proper user validation before processing them helped me understand significance of input sanitization. I learned that even simple inputs like usernames or text fields can become security risks if not properly controlled. I will always implement input validation checking for input formats, enforce length restrictions, and ensure that all user-provided data is treated as untrusted. 
 
 ### 3.5. Insecure Code Practices
-Author: Person 5
+Author: 5
 
 ###### 3.5.1 Vulnerability Description  
-Lorem Ipsum
+Insecure code practices include patterns that increase information leakage or make the app fragile under error conditions. The main issues identified were:
+
+- Poor error handling (unhandled exceptions during storage access/parsing).
+- Unsafe error exposure (showing raw errors or stack traces such as `alert(error.stack)`).
+- Unsafe logging (logging passwords/tokens/user notes to the console during debugging).
+- Weak randomness (`Math.random()`) for token-like values.
 ###### 3.5.2 Security Risk  
-Lorem Ipsum
+- Internal error details and stack traces help attackers learn app structure and failure modes.
+- Logs can leak sensitive authentication data (passwords/session tokens) or private user notes.
+- Predictable randomness can lead to guessable identifiers and weak session handling.
 ###### 3.5.3 Implemented Fix  
-Lorem Ipsum
+The following secure coding improvements were implemented:
+
+- Centralized safe error logging in `src/security/reportError.ts`
+  - Logs only a generic message (`console.error("Action failed")`) in dev
+  - Avoids logging raw error objects, stacks, tokens, passwords, or note contents
+- Generic user-facing error messages in catch blocks
+  - Uses: `"Something went wrong. Please try again."`
+  - Prevents information leakage to the user
+- Hardened storage handling in `src/Notes.tsx`
+  - Uses encrypted storage at rest (`react-native-encrypted-storage`)
+  - Wraps storage access and JSON parsing in `try/catch` with safe handling
+- Improved randomness and safe session creation in `src/auth.ts`
+  - Uses secure randomness (`crypto.randomUUID` / `crypto.getRandomValues`)
+  - No weak `Math.random()` fallback; fails closed if secure randomness is unavailable
 ###### 3.5.4 Security Improvement  
-Lorem Ipsum
+These changes improve security by preventing information leakage, reducing sensitive data exposure, and improving resilience:
+
+- App errors fail safely without exposing stacks or internal implementation details.
+- Logs contain only safe, generic messages and do not include secrets or user data.
+- Notes are protected at rest using encrypted storage rather than plaintext persistence.
+- Session tokens are generated using secure randomness to reduce predictability.
 
 **Reflection**
+This issue reinforced that security is not only about vulnerabilities like injection; it also depends on defensive patterns such as safe error handling and safe logging. Even small shortcuts in error handling or logging can leak information. By centralizing reporting and enforcing generic errors, the app becomes safer and easier to maintain.
 
 
 ## 4. References
@@ -200,3 +251,7 @@ Lorem Ipsum
 [2] Android Developers. (2026, Mar. 06). Security tips. Retrieved from https://developer.android.com/privacy-and-security/security-tips
 
 [3] OWASP Foundation. (2023). M9: Insecure Data Storage. OWASP Mobile Top 10. Retrieved from https://owasp.org/www-project-mobile-top-10/2023-risks/m9-insecure-data-storage.html
+
+[4] emertechie. react-native-encrypted-storage. Retrieved from https://github.com/emeraldsanto/react-native-encrypted-storage
+
+[5] OWASP Foundation. Password Storage Cheat Sheet (PBKDF2 guidance). Retrieved from https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
