@@ -88,7 +88,7 @@ Through the fix, I could realize the importance of maintaining the use of sensit
 Lastly, I also realized the importance of using proper methods and storage types when dealing with sensitive data, for this issue simply removing the password for the key was enough, but for future interactions with sensitive data, it is crucial to use the adequate methods and proper encryption as well [3]. 
 
 ### 3.2. Improper Authentication
-Author: Person 2
+Author: Denver Timlick
 
 ###### 3.2.1 Vulnerability Description  
 The original login flow handled authentication directly inside the `Login.tsx` screen and used hardcoded username and password pairs:
@@ -134,7 +134,7 @@ This improves security by removing hardcoded credentials from the client, reduci
 This issue showed how easy it is for authentication to look correct from a user-interface perspective while still being weak from a security perspective. Before making the fix, I mainly focused on whether login "worked," but the lab made it clear that where authentication happens is just as important as whether it succeeds. I also learned that protected screens should not simply assume the user is authorized forever after the first check. Even in a small app, adding session validation and avoiding unnecessary password handling makes the overall design much safer and easier to improve later.
 
 ### 3.3. Code Injection
-Author: Person 3
+Author: Naman Khanna
 
 ###### 3.3.1 Vulnerability Description  
 Code injection was found in the note evaluation flow at `src/components/Note.tsx`, where user-controlled text (`props.text`) was passed directly to `eval()`:
@@ -170,7 +170,7 @@ This issue highlighted how a single convenience function such as `eval()` can in
 - Fail safely: return controlled errors for invalid input instead of attempting to execute it.
 
 ### 3.4. Insufficient Input Validation
-Author: Person 4
+Author: Jasleen Kaur
 
 ###### 3.4.1 Vulnerability Description  
 Insufficient input validation refers to accept user inputs without doing proper checks for length, content and formats on them. This creates the possibility of invalid or malicious inputs getting processed by the system. 
@@ -204,7 +204,7 @@ These improvements ensure the app only processes valid and properly formatted in
 Implementing proper user validation before processing them helped me understand significance of input sanitization. I learned that even simple inputs like usernames or text fields can become security risks if not properly controlled. I will always implement input validation checking for input formats, enforce length restrictions, and ensure that all user-provided data is treated as untrusted. 
 
 ### 3.5. Insecure Code Practices
-Author: 5
+Author: Sehajbir Kaur
 
 ###### 3.5.1 Vulnerability Description  
 Insecure code practices include patterns that increase information leakage or make the app fragile under error conditions. The main issues identified were:
